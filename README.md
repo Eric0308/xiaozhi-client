@@ -2,7 +2,18 @@
 
 这是一个用于连接小智AI助手的Python客户端库。它提供了简单的接口来进行语音对话和文本交互。
 
-## 安装
+## 源码安装
+
+```bash
+git clone https://github.com/Eric0308/xiaozhi-client.git
+cd xiaozhi-client
+conda create -n xiaozhi-client python=3.10 -y
+conda activate xiaozhi-client 
+pip install -e .
+python examples/simple_client.py
+```
+
+## pip 安装（待开发）
 
 ```bash
 pip install xiaozhi-client
@@ -10,38 +21,32 @@ pip install xiaozhi-client
 
 ## 快速开始
 
+这是一个基础的文本对话示例:
+
 ```python
 import asyncio
-from xiaozhi_client import XiaozhiClient, ClientConfig, ListenMode
+from xiaozhi_client import XiaozhiClient, ClientConfig
 
 async def main():
+    # 配置客户端
     config = ClientConfig(
-        ws_url="ws://your-server:9005",
-        device_token="your-token",
-        protocol_version=1
+        ws_url="ws://localhost:8000",
     )
     
     client = XiaozhiClient(config)
     
-    # 设置回调
-    client.on_tts_start = lambda msg: print("开始播放TTS")
-    client.on_tts_end = lambda msg: print("TTS播放结束")
-    client.on_tts_data = lambda data: print("收到音频数据")
-    
-    # 连接服务器
-    await client.connect()
-    
-    # 开始语音识别（自动模式）
-    await client.send_text({
-        "type": "listen",
-        "state": "start",
-        "mode": ListenMode.AUTO.value
-    })
-    
-    await client.close()
+    try:
+        await client.connect()
+        # 发送文本消息
+        await client.send_txt_message("你好")
+    finally:
+        await client.close()
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
+
+完整示例代码请参考 [simple_client.py](examples/simple_client.py)
 
 ## 特性
 
