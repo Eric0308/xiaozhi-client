@@ -2,6 +2,9 @@
 
 这是一个用于连接小智AI助手的Python客户端库。它提供了简单的接口来进行语音对话和文本交互。
 
+[小智前端-硬件版](https://github.com/78/xiaozhi-esp32)
+[小智后端-本地部署版](https://github.com/xinnan-tech/xiaozhi-esp32-server)
+
 ## 源码安装
 
 ```bash
@@ -164,10 +167,12 @@ if __name__ == "__main__":
 
 ## 依赖
 
-- websockets >= 12.0
-- opuslib >= 3.0.1
-- numpy >= 1.26.4
-- sounddevice >= 0.4.6 (可选，用于录音示例)
+- websockets==10.4
+- opuslib==3.0.1
+- numpy==2.2.3
+- sounddevice==0.5.1
+- loguru==0.7.3
+- pyaudio==0.2.14
 
 ## 协议文档
 
