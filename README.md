@@ -48,6 +48,47 @@ if __name__ == "__main__":
 
 完整示例代码请参考 [simple_client.py](examples/simple_client.py)
 
+## 语音对话示例
+
+这是一个基础的语音对话示例:
+
+```python
+import asyncio
+import sounddevice as sd
+from xiaozhi_client import XiaozhiClient, ClientConfig, AudioConfig
+
+async def main():
+    # 配置客户端
+    config = ClientConfig(
+        ws_url="ws://localhost:8000",
+    )
+    
+    audio_config = AudioConfig(
+        sample_rate=16000,
+        channels=1,
+        frame_size=960,
+        frame_duration=20,
+        format="opus"
+    )
+    
+    client = XiaozhiClient(config, audio_config)
+    
+    try:
+        await client.connect()
+        # 开始录音并发送音频数据
+        with sd.InputStream(samplerate=audio_config.sample_rate, channels=audio_config.channels) as stream:
+            while True:
+                data, _ = stream.read(audio_config.frame_size)
+                await client.send_audio_data(data)
+    finally:
+        await client.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+完整示例代码请参考 [audio_chat.py](examples/audio_chat.py)
+
 ## 特性
 
 - WebSocket连接管理
@@ -135,3 +176,11 @@ if __name__ == "__main__":
 - 音频流协议
 - 消息类型定义
 - 错误处理机制
+
+## 致谢
+本项目参考和借鉴了以下优秀的开源项目:
+
+[xiaozhi-py](https://github.com/honestQiao/xiaozhi-py) - Python版本的小智客户端实现
+[xiaozhi-web-client](https://github.com/TOM88812/xiaozhi-web-client.git) - Web版本的小智客户端实现
+
+感谢所有为此项目做出贡献的开发者和社区成员。

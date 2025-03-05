@@ -3,3 +3,4 @@ opuslib>=3.0.1
 numpy>=1.26.4
 sounddevice>=0.4.6
 loguru>=0.7.0
+pyaudio==0.2.14

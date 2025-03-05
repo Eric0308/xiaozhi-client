@@ -2,14 +2,15 @@ from setuptools import setup, find_packages
 
 setup(
     name="xiaozhi-client",
-    version="0.1.0",
+    version="0.1.1",
     packages=find_packages(),
     install_requires=[
         "websockets>=10.0,<11.0",  # 降级到 10.x 版本
         "opuslib>=3.0.1",
         "numpy>=1.26.4",
         "sounddevice>=0.4.6",  # 添加音频播放依赖
-        "loguru>=0.7.0"  # 添加loguru依赖
+        "loguru>=0.7.0", # 添加loguru依赖
+        "pyaudio==0.2.14",  # 添加pyaudio依赖
     ],
     author="Eric",
     author_email="eric230308@gmail.com",
