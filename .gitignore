@@ -4,3 +4,5 @@
 /xiaozhi_client/__pycache__
 /xiaozhi_client/utils/__pycache__
 /tests/__pycache__
+/dist
+/build/lib/xiaozhi_client

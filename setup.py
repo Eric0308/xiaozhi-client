@@ -5,11 +5,11 @@ setup(
     version="0.1.1",
     packages=find_packages(),
     install_requires=[
-        "websockets>=10.0,<11.0",  # 降级到 10.x 版本
-        "opuslib>=3.0.1",
-        "numpy>=1.26.4",
-        "sounddevice>=0.4.6",  # 添加音频播放依赖
-        "loguru>=0.7.0", # 添加loguru依赖
+        "websockets==10.4",  # 降级到 10.x 版本
+        "opuslib==3.0.1",
+        "numpy==2.2.3",
+        "sounddevice==0.5.1",  # 添加音频播放依赖
+        "loguru==0.7.3", # 添加loguru依赖
         "pyaudio==0.2.14",  # 添加pyaudio依赖
     ],
     author="Eric",
@@ -23,5 +23,5 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.10",
 )

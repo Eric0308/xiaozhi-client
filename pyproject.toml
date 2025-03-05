@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xiaozhi-client"
+version = "0.1.1"
+authors = [
+    { name="Eric", email="eric230308@gmail.com" },
+]
+description = "A Python client library for Xiaozhi AI assistant"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "websockets==10.4",
+    "opuslib==3.0.1",
+    "numpy==2.2.3",
+    "sounddevice==0.5.1",
+    "loguru==0.7.3",
+    "pyaudio==0.2.14",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/eric0308/xiaozhi-client"
+"Bug Tracker" = "https://github.com/eric0308/xiaozhi-client/issues"
+
+[tool.setuptools]
+packages = ["xiaozhi_client"]
+
+[tool.setuptools.package-data]
+"xiaozhi_client" = ["py.typed"]
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
