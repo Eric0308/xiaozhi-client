@@ -19,7 +19,10 @@ python examples/simple_client.py
 ## pip 安装
 
 ```bash
+conda create -n xiaozhi-client python=3.10 -y
+conda activate xiaozhi-client 
 pip install xiaozhi-client
+python examples/simple_client.py
 ```
 
 ## 快速开始
@@ -28,25 +31,39 @@ pip install xiaozhi-client
 
 ```python
 import asyncio
+import sys
 from xiaozhi_client import XiaozhiClient, ClientConfig
+from concurrent.futures import ThreadPoolExecutor
 
 async def main():
-    # 配置客户端
-    config = ClientConfig(
-        ws_url="ws://localhost:8000",
-    )
+    client = XiaozhiClient(ClientConfig(ws_url="ws://localhost:8000",))
     
-    client = XiaozhiClient(config)
+    client.on_tts_end = lambda msg: print("\n请输入消息(输入q退出)：")
+    
+    # 创建输入循环
+    executor = ThreadPoolExecutor(max_workers=1)
+    loop = asyncio.get_event_loop()
+    
+    print("\n请输入消息(输入q退出)：")
     
     try:
         await client.connect()
-        # 发送文本消息
-        await client.send_txt_message("你好")
+        while True:
+            message = await loop.run_in_executor(executor, sys.stdin.readline)
+            message = message.strip()
+            
+            if message.lower() == 'q':
+                break
+                
+            if message:
+                await client.send_txt_message(message)
+                # 等待音频播放完成
+                while client.is_playing.is_set():
+                    await asyncio.sleep(0.1)
     finally:
         await client.close()
 
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(main())
 ```
 
 完整示例代码请参考 [simple_client.py](examples/simple_client.py)
@@ -57,37 +74,42 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-import sounddevice as sd
 from xiaozhi_client import XiaozhiClient, ClientConfig, AudioConfig
 
-async def main():
-    # 配置客户端
-    config = ClientConfig(
-        ws_url="ws://localhost:8000",
-    )
-    
-    audio_config = AudioConfig(
-        sample_rate=16000,
-        channels=1,
-        frame_size=960,
-        frame_duration=20,
-        format="opus"
-    )
-    
+async def start_voice_chat(
+    ws_url: str = "ws://localhost:8000",
+    sample_rate: int = 16000,
+    channels: int = 1
+):
+    """启动语音对话"""
+    config = ClientConfig(ws_url=ws_url)
+    audio_config = AudioConfig(sample_rate=sample_rate, channels=channels)
     client = XiaozhiClient(config, audio_config)
+    
+    async def on_tts_end(msg):
+        print("\n[系统] 继续聆听中... (q:退出)")
+        client.resume_voice_input()
+        
+    client.on_tts_end = on_tts_end
     
     try:
         await client.connect()
-        # 开始录音并发送音频数据
-        with sd.InputStream(samplerate=audio_config.sample_rate, channels=audio_config.channels) as stream:
-            while True:
-                data, _ = stream.read(audio_config.frame_size)
-                await client.send_audio_data(data)
+        # 启动语音输入
+        await client.start_voice_input()
+        print("[系统] 开始对话... (q:退出)\n")
+        
+        # 命令处理循环
+        while True:
+            cmd = await asyncio.get_event_loop().run_in_executor(None, input, "")
+            cmd = cmd.strip().lower()
+            
+            if cmd == 'q': break
+
     finally:
         await client.close()
+        print("\n[系统] 程序已退出")
 
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(start_voice_chat())
 ```
 
 完整示例代码请参考 [audio_chat.py](examples/audio_chat.py)
