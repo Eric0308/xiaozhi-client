@@ -181,6 +181,7 @@ if __name__ == "__main__":
 本项目参考和借鉴了以下优秀的开源项目:
 
 [xiaozhi-py](https://github.com/honestQiao/xiaozhi-py) - Python版本的小智客户端实现
+
 [xiaozhi-web-client](https://github.com/TOM88812/xiaozhi-web-client.git) - Web版本的小智客户端实现
 
 感谢所有为此项目做出贡献的开发者和社区成员。
