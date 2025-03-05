@@ -13,7 +13,7 @@ pip install -e .
 python examples/simple_client.py
 ```
 
-## pip 安装（待开发）
+## pip 安装
 
 ```bash
 pip install xiaozhi-client
