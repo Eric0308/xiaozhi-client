@@ -13,6 +13,8 @@ import threading
 from queue import Queue, Empty, Full
 import sounddevice as sd
 from xiaozhi_client.utils.wav import save_wav
+import time  # 确保引入time模块
+import random  # 确保引入random模块
 
 class XiaozhiClient:
     def __init__(self, config: ClientConfig, audio_config: Optional[AudioConfig] = None):
@@ -69,6 +71,13 @@ class XiaozhiClient:
         self._input_paused = threading.Event()
         self._input_running = threading.Event()
         self._input_queue = Queue(maxsize=1024)  # 改用线程安全的Queue
+        self._input_initialized = False  # 添加新标记表示输入是否已经初始化过
+        self._last_audio_sent_time = 0  # 添加最近一次发送音频的时间戳
+        self._silence_detection_enabled = True  # 是否启用静音检测
+        self._silence_threshold = 0.01  # 静音阈值
+        self._consecutive_silence_frames = 0  # 连续静音帧计数
+        self._max_silence_frames = 200  # 最大静音帧数 (约3-4秒)
+        self._last_stats_time = 0  # 上次统计信息时间
 
     def _init_decoder(self):
         """初始化解码器"""
@@ -77,6 +86,10 @@ class XiaozhiClient:
             self.audio_config.channels
         )
 
+    def set_device_id(self, device_id: str):
+        """设置设备ID"""
+        self.device_id = device_id
+        
     def _get_device_id(self) -> str:
         # 获取本机的MAC地址
         mac = uuid.getnode()
@@ -275,6 +288,11 @@ class XiaozhiClient:
             # 确保数据是float32类型
             if audio_data.dtype != np.float32:
                 audio_data = audio_data.astype(np.float32)
+
+            # 计算并记录音频强度
+            rms = np.sqrt(np.mean(np.square(audio_data)))
+            if random.random() < 0.01:  # 只对1%的帧记录强度
+                logger.debug(f"发送音频数据，强度: {rms:.5f}")
 
             # 将float32数据转换为PCM int16格式
             pcm_data = (audio_data * 32767).astype(np.int16)
@@ -524,33 +542,47 @@ class XiaozhiClient:
 
     async def start_voice_input(self):
         """启动语音输入"""
+        logger.debug("开始启动语音输入")
+        
+        # 先确保之前的资源被清理
         if self._input_stream is not None:
-            return
-
+            logger.debug("检测到已存在语音输入流，先停止它")
+            await self.stop_voice_input()
+        
         if not self.check_audio_input():
             raise RuntimeError("未检测到可用的音频输入设备")
 
         self._input_running.set()
-        
+        self._input_paused.clear()
+        self._last_audio_sent_time = time.time()
+        self._consecutive_silence_frames = 0
+
         def input_callback(indata, frames, time, status):
-            if status:
-                logger.warning(f"音频输入状态: {status}")
-                return
-                
-            if self._input_paused.is_set():
+            if status or self._input_paused.is_set():
                 return
                 
             try:
-                # 使用线程安全的Queue而不是asyncio.Queue
                 audio_data = indata.reshape(-1).astype(np.float32)
-                try:
-                    self._input_queue.put_nowait(audio_data)
-                except Full:
-                    # 队列满时直接丢弃数据
-                    pass
+                rms = np.sqrt(np.mean(np.square(audio_data)))
+                
+                # 如果是有效声音，直接发送
+                if rms > self._silence_threshold:
+                    try:
+                        self._input_queue.put_nowait((audio_data, rms))
+                        self._consecutive_silence_frames = 0
+                    except Full:
+                        pass
+                else:
+                    # 如果是静音，记录并适时发送静音帧
+                    self._consecutive_silence_frames += 1
+                    if self._consecutive_silence_frames <= self._max_silence_frames:
+                        try:
+                            self._input_queue.put_nowait((audio_data * 0.01, rms))
+                        except Full:
+                            pass
             except Exception as e:
-                logger.debug(f"音频入队列失败: {e}", exc_info=False)  # 减少堆栈跟踪
-
+                logger.debug(f"音频处理错误: {e}")
+            
         try:
             self._input_stream = sd.InputStream(
                 channels=self.audio_config.channels,
@@ -561,52 +593,116 @@ class XiaozhiClient:
             )
             self._input_stream.start()
             
-            # 启动处理任务
+            if self._input_task and not self._input_task.done():
+                self._input_task.cancel()
+                try:
+                    await self._input_task
+                except asyncio.CancelledError:
+                    pass
+                
             self._input_task = asyncio.create_task(self._process_input())
-            
-            # 开始语音识别
             await self.start_listen()
+            self._input_initialized = True
             logger.info("语音输入已启动")
             
         except Exception as e:
             self._input_running.clear()
+            logger.error(f"启动语音输入失败: {str(e)}")
             raise RuntimeError(f"启动语音输入失败: {e}")
 
     async def _process_input(self):
         """处理输入音频队列"""
-        last_error_time = 0
-        error_log_interval = 5  # 错误日志的最小间隔时间(秒)
-        
         try:
+            logger.info("开始处理音频输入")
+            recording = False  # 添加录音状态标记
+            frames_sent = 0
+            
             while self._input_running.is_set():
                 try:
-                    # 使用非阻塞的get_nowait而不是wait_for
                     while not self._input_queue.empty() and self._input_running.is_set():
-                        audio_data = self._input_queue.get_nowait()
-                        await self.send_audio(audio_data)
+                        audio_data, rms = self._input_queue.get_nowait()
+                        
+                        if not self._input_paused.is_set():
+                            # 如果音频强度超过阈值，进入录音状态
+                            if rms > self._silence_threshold:
+                                if not recording:
+                                    logger.debug(f"检测到声音开始，能量: {rms:.5f}")
+                                    recording = True
+                                    # 发送开始录音消息
+                                    await self.start_listen()
+                                
+                                # 直接发送音频数据
+                                await self.send_audio(audio_data)
+                                frames_sent += 1
+                                self._last_audio_sent_time = time.time()
+                                self._consecutive_silence_frames = 0
+                            else:
+                                if recording:
+                                    self._consecutive_silence_frames += 1
+                                    # 发送低音量帧以触发服务端静音检测
+                                    await self.send_audio(audio_data * 0.01)
+                                    
+                                    # 如果连续静音帧达到阈值，结束录音
+                                    if self._consecutive_silence_frames >= self._max_silence_frames:
+                                        logger.debug(f"检测到语音结束，已发送 {frames_sent} 帧")
+                                        recording = False
+                                        frames_sent = 0
+                                        # 发送停止录音消息
+                                        await self.stop_listen()
+                        
                         self._input_queue.task_done()
-                    await asyncio.sleep(0.001)  # 短暂休眠避免CPU过载
+                        
+                    await asyncio.sleep(0.001)
+                    
                 except Empty:
                     continue
                 except Exception as e:
-                    current_time = time.time()
-                    if current_time - last_error_time > error_log_interval:
-                        logger.error(f"处理音频输入失败: {e}")
-                        last_error_time = current_time
+                    logger.error(f"处理音频帧错误: {e}")
+                    
         except asyncio.CancelledError:
+            if recording:
+                # 如果被取消时正在录音，确保发送停止消息
+                await self.stop_listen()
             logger.debug("音频输入处理任务已取消")
+        except Exception as e:
+            logger.error(f"音频输入处理任务异常: {e}")
 
     def pause_voice_input(self):
         """暂停语音输入"""
+        logger.debug("暂停语音输入")
         self._input_paused.set()
 
     def resume_voice_input(self):
         """恢复语音输入"""
+        logger.debug("恢复语音输入")
         self._input_paused.clear()
+        self._consecutive_silence_frames = 0
+        self._last_audio_sent_time = time.time()
+        
+        # 清空积累的队列数据
+        items_cleared = 0
+        while True:
+            try:
+                self._input_queue.get_nowait()
+                self._input_queue.task_done()
+                items_cleared += 1
+            except Empty:
+                break
+        
+        # 确保开始新的录音会话
+        if items_cleared > 0:
+            logger.debug(f"恢复语音输入: 清空了 {items_cleared} 个队列项")
 
     async def stop_voice_input(self):
         """停止语音输入"""
+        logger.debug("停止语音输入")
         self._input_running.clear()
+        
+        # 确保发送停止消息
+        try:
+            await self.stop_listen()
+        except Exception as e:
+            logger.error(f"发送停止消息失败: {e}")
         
         if self._input_task:
             self._input_task.cancel()
@@ -614,13 +710,18 @@ class XiaozhiClient:
                 await self._input_task
             except asyncio.CancelledError:
                 pass
+            self._input_task = None
         
         if self._input_stream:
             self._input_stream.stop()
             self._input_stream.close()
             self._input_stream = None
             
-        # 清空队列
+        # 重置所有状态
+        self._consecutive_silence_frames = 0
+        self._last_audio_sent_time = 0
+        
+        # 清空所有队列
         while True:
             try:
                 self._input_queue.get_nowait()
@@ -635,3 +736,18 @@ class XiaozhiClient:
             except asyncio.QueueEmpty:
                 break
 
+    def enable_silence_detection(self, enabled=True, threshold=0.01, max_frames=200):
+        """启用或禁用静音检测，并设置相关参数
+        
+        Args:
+            enabled: 是否启用静音检测
+            threshold: 静音阈值，默认0.01
+            max_frames: 最大静音帧数，超过此值将认为语音结束，默认200
+        """
+        self._silence_detection_enabled = enabled
+        self._silence_threshold = threshold
+        self._max_silence_frames = max_frames
+        # 重置相关计数器
+        self._consecutive_silence_frames = 0
+        self._last_audio_sent_time = time.time()
+        logger.debug(f"静音检测设置: 启用={enabled}, 阈值={threshold}, 最大帧数={max_frames}")
