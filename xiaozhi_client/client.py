@@ -218,6 +218,14 @@ class XiaozhiClient:
                 await self._handle_iot_message(msg_data)
             elif msg_type == MessageType.LISTEN.value:
                 await self._handle_listen_message(msg_data)
+            elif msg_type == MessageType.LLM.value:
+                logger.info(f"LLM消息: {msg_data.get('text')}")
+            elif msg_type == MessageType.STT.value:
+                logger.info(f"STT消息: {msg_data.get('text')}")
+            elif msg_type == MessageType.HELLO.value:
+                logger.info(f"服务器消息: {msg_data}")
+            else:
+                logger.info(f"未知消息类型{msg_type}: {msg_data}")
             
             if self.on_message:
                 await self.on_message(msg_data)

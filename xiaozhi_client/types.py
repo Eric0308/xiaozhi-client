@@ -15,6 +15,7 @@ class MessageType(Enum):
     TTS = "tts"
     IOT = "iot"
     LLM = "llm"
+    STT= "stt"
 
 class ListenState(Enum):
     START = "start"
