@@ -12,14 +12,16 @@ def prompt_input():
     """显示输入提示"""
     print_message("\n请输入消息(输入q退出)：", end='')
 
+
 async def main():
     # 配置客户端
     config = ClientConfig(
-        ws_url="ws://localhost:8000",
+        ws_url="wss://api.tenclass.net/xiaozhi/v1/"  #感谢虾哥提供的服务
+        #ws_url = "ws://localhost:8000",
     )
     
     client = XiaozhiClient(config)
-    
+
     # 设置回调函数
     async def on_tts_start(msg):
         print_message("\n[系统] 开始播放语音...")
