@@ -35,6 +35,12 @@ class XiaozhiClient:
         self.on_tts_start: Optional[Callable] = None
         self.on_tts_data: Optional[Callable] = None #暂不对外开放
         self.on_tts_end: Optional[Callable] = None
+        self.on_iot_message: Optional[Callable] = None
+        self.on_listen_message: Optional[Callable] = None
+        self.on_hello_message: Optional[Callable] = None
+        self.on_llm_message: Optional[Callable] = None
+        self.on_stt_message: Optional[Callable] = None
+        self.on_other_message: Optional[Callable] = None
         self.on_message: Optional[Callable] = None
         self.on_connection_lost: Optional[Callable[[str], Any]] = None  # 添加连接断开回调
         self.on_connection_error: Optional[Callable[[Exception], Any]] = None  # 添加连接错误回调
@@ -219,13 +225,13 @@ class XiaozhiClient:
             elif msg_type == MessageType.LISTEN.value:
                 await self._handle_listen_message(msg_data)
             elif msg_type == MessageType.LLM.value:
-                logger.info(f"LLM消息: {msg_data.get('text')}")
+                await self._handle_llm_message(msg_data)
             elif msg_type == MessageType.STT.value:
-                logger.info(f"STT消息: {msg_data.get('text')}")
+                await self._handle_stt_message(msg_data)
             elif msg_type == MessageType.HELLO.value:
-                logger.info(f"服务器消息: {msg_data}")
+                await self._handle_hello_message(msg_data)
             else:
-                logger.info(f"未知消息类型{msg_type}: {msg_data}")
+                await self._handle_other_message(msg_data)
             
             if self.on_message:
                 await self.on_message(msg_data)
@@ -248,6 +254,30 @@ class XiaozhiClient:
             except Exception as e:
                 logger.error(f"音频处理错误: {e}")
                 self._init_decoder()
+
+    async def _handle_hello_message(self, msg_data: dict):
+        logger.info(f"服务器消息: {msg_data}")
+        """处理Hello消息"""
+        if self.on_hello_message:
+            await self.on_hello_message(msg_data)
+    
+    async def _handle_llm_message(self, msg_data: dict):
+        logger.info(f"LLM消息: {msg_data.get('text')}")
+        """处理LLM消息"""
+        if self.on_llm_message:
+            await self.on_llm_message(msg_data)
+    
+    async def _handle_stt_message(self, msg_data: dict):
+        logger.info(f"STT消息: {msg_data.get('text')}")
+        """处理STT消息"""
+        if self.on_stt_message:
+            await self.on_stt_message(msg_data)
+
+    async def _handle_other_message(self, msg_data: dict):
+        """处理其他消息"""
+        logger.info(f"未知消息类型{msg_data.get('type')}: {msg_data}")
+        if self.on_other_message:
+            await self.on_other_message
 
     async def _handle_tts_message(self, msg_data: dict):
         """处理TTS状态消息"""

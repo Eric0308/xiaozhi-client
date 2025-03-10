@@ -12,7 +12,8 @@ async def start_voice_chat(
     config = ClientConfig(ws_url=ws_url)
     audio_config = AudioConfig(sample_rate=sample_rate, channels=channels)
     client = XiaozhiClient(config, audio_config)
-    
+    #client.device_id = "xxx" # 已注册的设备id
+
     # 配置静音检测
     client.enable_silence_detection(enabled=True, threshold=0.01, max_frames=150)
     

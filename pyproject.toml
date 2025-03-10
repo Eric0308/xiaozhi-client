@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xiaozhi-client"
-version = "0.1.3"
+version = "0.1.4"
 authors = [
     { name="Eric", email="eric230308@gmail.com" },
 ]

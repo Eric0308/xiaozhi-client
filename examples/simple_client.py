@@ -21,6 +21,7 @@ async def main():
     )
     
     client = XiaozhiClient(config)
+    #client.device_id = "xxx" # 已注册得设备id
 
     # 设置回调函数
     async def on_tts_start(msg):
