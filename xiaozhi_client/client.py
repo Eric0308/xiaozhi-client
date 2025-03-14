@@ -35,6 +35,7 @@ class XiaozhiClient:
         self.on_tts_start: Optional[Callable] = None
         self.on_tts_data: Optional[Callable] = None #暂不对外开放
         self.on_tts_end: Optional[Callable] = None
+        self.on_tts_message: Optional[Callable] = None
         self.on_iot_message: Optional[Callable] = None
         self.on_listen_message: Optional[Callable] = None
         self.on_hello_message: Optional[Callable] = None
@@ -256,7 +257,7 @@ class XiaozhiClient:
                 self._init_decoder()
 
     async def _handle_hello_message(self, msg_data: dict):
-        logger.info(f"服务器消息: {msg_data}")
+        #logger.info(f"服务器消息: {msg_data}")
         """处理Hello消息"""
         if self.on_hello_message:
             await self.on_hello_message(msg_data)
@@ -292,6 +293,8 @@ class XiaozhiClient:
         elif state == 'sentence_start':
             self.current_sentence_text = msg_data.get('text', '')
             logger.info(f"tts语句: {self.current_sentence_text}")
+            if self.on_tts_message:
+                await self.on_tts_message(msg_data)
                 
         elif state == 'stop':
             logger.info(f"TTS结束")
