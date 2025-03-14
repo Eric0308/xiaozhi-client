@@ -16,8 +16,8 @@ def prompt_input():
 async def main():
     # 配置客户端
     config = ClientConfig(
-        ws_url="wss://api.tenclass.net/xiaozhi/v1/"  #感谢虾哥提供的服务
-        #ws_url = "ws://localhost:8000",
+        #ws_url="wss://api.tenclass.net/xiaozhi/v1/"  #感谢虾哥提供的服务
+        ws_url = "ws://localhost:8000",
     )
     
     client = XiaozhiClient(config)
