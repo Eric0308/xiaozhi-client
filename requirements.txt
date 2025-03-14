@@ -4,3 +4,4 @@ numpy==2.2.3
 sounddevice==0.5.1
 loguru==0.7.3
 pyaudio==0.2.14
+Pillow==10.2.0
